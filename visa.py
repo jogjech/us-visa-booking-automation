@@ -63,7 +63,7 @@ def search():
   found_clickable_date = False
   clickable_date = None
   count = 0
-  while found_clickable_date is False and count < 3:
+  while found_clickable_date is False and count < 3: # TODO: count is a hack to avoid searching too many pages. You can change it according to your need.
     driver.implicitly_wait(0)
     try:
       clickable_date = driver.find_element(by=By.XPATH, value="//td[@data-handler='selectDay']")
