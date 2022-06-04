@@ -1,6 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import Select
+from selenium.common.exceptions import ElementNotInteractableException
 from selenium.common.exceptions import NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
@@ -10,13 +11,20 @@ from datetime import datetime as dt
 # Config
 email = "abc@gmail.com"
 password = "YourPassword"
-search_date = "2022-06-02" # Only the date before the search date will be selected
+earliest_search_date = "2022-06-02"
+latest_search_date="2022-12-01"
 preferred_location = "Vancouver" # Enter the same text as the website
 retry_in_minutes = 25
 
 def search():
+  print("======== Current datetime: " + str(dt.now().strftime('%Y-%m-%d %H:%M:%S')) + " =============")
+
   # Initiate the browser
-  driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+  try:
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+  except Exception:
+    print("Error when opening the browser. Will try later.")
+    return False
   action = webdriver.ActionChains(driver)
 
   # Go to Sign in page
@@ -57,7 +65,11 @@ def search():
 
   date_picker = driver.find_element(by=By.ID, value="appointments_consulate_appointment_date")
   action = webdriver.ActionChains(driver)
-  action.move_to_element(date_picker).click().perform()
+  try:
+    action.move_to_element(date_picker).click().perform()
+  except ElementNotInteractableException:  # no calendar is available to choose from
+    print("No calendar to choose from")
+    return False
 
   # Click next date
   found_clickable_date = False
@@ -82,11 +94,12 @@ def search():
     action.move_to_element(clickable_date).click().perform()
     time.sleep(2)
     selected_date = dt.strptime(date_picker.get_attribute("value"), "%Y-%m-%d")
-    expected_date = dt.strptime(search_date, "%Y-%m-%d")
+    earliest_expected_date = dt.strptime(earliest_search_date, "%Y-%m-%d")
+    latest_expected_date = dt.strptime(latest_search_date, "%Y-%m-%d")
     print("selected date is: " + selected_date.strftime("%m/%d/%y"))
-    print("expected date is: " + expected_date.strftime("%m/%d/%y"))
-    if selected_date >= expected_date:
-      print("The selected date is too late, skip")
+    print("expected date range is: [" + earliest_expected_date.strftime("%m/%d/%y") + ", " + latest_expected_date.strftime("%m/%d/%y") + "]")
+    if selected_date < earliest_expected_date or selected_date > latest_expected_date:
+      print("The selected date is not in range, skip")
     else:
       time_picker = driver.find_element(by=By.ID, value="appointments_consulate_appointment_time")
       select = Select(time_picker)
@@ -105,7 +118,7 @@ def search():
       print("Rescheduled to " + selected_date.strftime("%m/%d/%y"))
       return True
   else:
-    print("Not found")
+    print("No desired date")
 
   driver.quit()
   return False
@@ -115,3 +128,4 @@ while search() is False:
   for i in range(retry_in_minutes):
     print("Retrying in " + str(retry_in_minutes - i) + " minutes")
     time.sleep(60)
+  print("============================================================\n")
